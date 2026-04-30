@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import json
-import os
-import tempfile
-from datetime import date, timedelta
+from datetime import date
 
 import pytest
 
@@ -43,7 +41,7 @@ class TestDocumentRequirements:
 class TestCategoryConfig:
     def test_consultation_copay(self, policy_loader):
         config = policy_loader.get_category_config("CONSULTATION")
-        assert config["copay"] == pytest.approx(0.1)
+        assert config["copay_percent"] == pytest.approx(10)
 
     def test_consultation_sub_limit(self, policy_loader):
         config = policy_loader.get_category_config("CONSULTATION")
@@ -52,11 +50,11 @@ class TestCategoryConfig:
 
 class TestWaitingPeriod:
     def test_condition_specific_waiting_period(self, policy_loader):
-        days = policy_loader.get_waiting_period("diabetes")
-        assert days == 365
+        _, days = policy_loader.get_waiting_period_for_diagnosis("diabetes mellitus")
+        assert days == 90
 
     def test_initial_waiting_period_fallback(self, policy_loader):
-        days = policy_loader.get_waiting_period("unknown_condition")
+        _, days = policy_loader.get_waiting_period_for_diagnosis("unknown condition xyz")
         assert days == 30
 
     def test_initial_waiting_period_direct(self, policy_loader):
@@ -84,8 +82,10 @@ class TestExclusions:
     def test_non_excluded_condition(self, policy_loader):
         assert policy_loader.is_excluded_condition("fever and cold") is False
 
-    def test_excluded_procedure(self, policy_loader):
-        assert policy_loader.is_excluded_procedure("DENTAL", "teeth whitening") is True
+    def test_excluded_procedure_dental(self, policy_loader):
+        # Dental excluded procedures live in opd_categories.dental.excluded_procedures
+        cat_excl = policy_loader.get_category_exclusions("DENTAL")
+        assert any("whitening" in e.lower() for e in cat_excl)
 
     def test_non_excluded_procedure(self, policy_loader):
         assert policy_loader.is_excluded_procedure("DENTAL", "root canal") is False
@@ -94,8 +94,8 @@ class TestExclusions:
 class TestFraudThresholds:
     def test_fraud_thresholds_loaded(self, policy_loader):
         thresholds = policy_loader.get_fraud_thresholds()
-        assert thresholds["high_value_threshold"] == 20000
-        assert thresholds["same_day_limit"] == 2
+        assert thresholds["high_value_claim_threshold"] == 20000
+        assert thresholds["same_day_claims_limit"] == 2
 
 
 class TestSubmissionRules:
@@ -108,15 +108,26 @@ class TestSubmissionRules:
 
 class TestPolicyEvaluationAgent:
     @pytest.mark.asyncio
-    async def test_placeholder_returns_approved(self, sample_submission):
+    async def test_returns_approved_for_valid_claim(self, sample_policy, tmp_path):
         from agents.policy_evaluation import run_policy_evaluation
         from models.decision import Decision
+        from services.policy_loader import PolicyLoader
+
+        policy_file = tmp_path / "policy.json"
+        policy_file.write_text(json.dumps(sample_policy))
+        pl = PolicyLoader(str(policy_file))
 
         state = {
             "claim_id": "CLM-TEST",
-            "claimed_amount": sample_submission.claimed_amount,
-            "claim_category": sample_submission.claim_category.value,
-            "member_id": sample_submission.member_id,
+            "claimed_amount": 500.0,
+            "claim_category": "CONSULTATION",
+            "member_id": "MEM-001",
+            "treatment_date": date(2026, 4, 1),
+            "hospital_name": None,
+            "ytd_claims_amount": 0.0,
+            "extraction_results": [],
+            "diagnosis": None,
+            "policy_loader": pl,
         }
         result_state = await run_policy_evaluation(state)
         assert "policy_eval_result" in result_state

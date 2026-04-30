@@ -2,17 +2,23 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MemberInfo(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     member_id: str
     name: str
-    age: int
+    age: Optional[int] = None
+    date_of_birth: Optional[str] = None
     gender: Optional[str] = None
     relationship: Optional[str] = None
     policy_id: Optional[str] = None
     pre_existing_conditions: List[str] = Field(default_factory=list)
+    join_date: Optional[str] = None
+    dependents: List[str] = Field(default_factory=list)
+    primary_member_id: Optional[str] = None
 
 
 class CoverageInfo(BaseModel):

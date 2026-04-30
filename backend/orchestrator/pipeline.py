@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -17,15 +16,14 @@ from agents import (
     run_fraud_detection,
     run_decision_aggregation,
 )
+from config import settings
 from models.claim import ClaimSubmission, ClaimResponse
-from models.decision import Decision
 from models.trace import DecisionTrace, TraceEntry
+from services.llm_service import LLMService
+from services.policy_loader import PolicyLoader
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# LangGraph state type — a plain dict so we can add keys at each node
-# ---------------------------------------------------------------------------
 ClaimState = Dict[str, Any]
 
 
@@ -37,24 +35,39 @@ def _ms(start: datetime, end: datetime) -> float:
     return (end - start).total_seconds() * 1000
 
 
+def _safe_str(v: Any) -> str:
+    """Compact, safe stringification for trace details."""
+    try:
+        s = str(v)
+        return s[:300]
+    except Exception:
+        return "<unserializable>"
+
+
 async def _timed_node(name: str, fn, state: ClaimState) -> ClaimState:
-    """Wraps an agent function with timing and trace recording."""
     started = _now()
-    trace_entries: List[TraceEntry] = state.get("_trace_entries", [])
+    trace_entries: List[TraceEntry] = list(state.get("_trace_entries", []))
     try:
         new_state = await fn(state)
         completed = _now()
+        # Build compact details dict (skip heavy keys)
+        _skip = {"documents", "policy_loader", "llm_service", "_trace_entries"}
+        details = {
+            k: _safe_str(v)
+            for k, v in new_state.items()
+            if not k.startswith("_") and k not in _skip
+        }
         entry = TraceEntry(
             agent_name=name,
             status="success",
             started_at=started,
             completed_at=completed,
             duration_ms=_ms(started, completed),
-            details={k: str(v)[:200] for k, v in new_state.items() if not k.startswith("_") and k != "documents"},
+            details=details,
         )
     except Exception as exc:
         completed = _now()
-        logger.exception("Agent %s raised an exception: %s", name, exc)
+        logger.exception("Agent %s raised an unhandled exception: %s", name, exc)
         entry = TraceEntry(
             agent_name=name,
             status="failed",
@@ -63,15 +76,14 @@ async def _timed_node(name: str, fn, state: ClaimState) -> ClaimState:
             duration_ms=_ms(started, completed),
             errors=[str(exc)],
         )
+        # Stop pipeline for unhandled agent exceptions
         new_state = {**state, "pipeline_stop": True, "_agent_error": str(exc)}
 
-    trace_entries = trace_entries + [entry]
+    trace_entries.append(entry)
     return {**new_state, "_trace_entries": trace_entries}
 
 
-# ---------------------------------------------------------------------------
-# Node wrappers
-# ---------------------------------------------------------------------------
+# ── Node wrappers ─────────────────────────────────────────────────────────────
 
 async def node_doc_verification(state: ClaimState) -> ClaimState:
     return await _timed_node("DocumentVerification", run_document_verification, state)
@@ -97,19 +109,14 @@ async def node_decision_aggregation(state: ClaimState) -> ClaimState:
     return await _timed_node("DecisionAggregation", run_decision_aggregation, state)
 
 
-# ---------------------------------------------------------------------------
-# Conditional edge: stop early if pipeline_stop is set
-# ---------------------------------------------------------------------------
+# ── Routing ───────────────────────────────────────────────────────────────────
 
-def should_continue(state: ClaimState) -> str:
-    if state.get("pipeline_stop"):
-        return "stop"
-    return "continue"
+def _route(state: ClaimState) -> str:
+    """Route to 'stop' (→ decision_aggregation) when pipeline_stop is set."""
+    return "stop" if state.get("pipeline_stop") else "continue"
 
 
-# ---------------------------------------------------------------------------
-# Graph construction
-# ---------------------------------------------------------------------------
+# ── Graph construction ────────────────────────────────────────────────────────
 
 def _build_graph() -> Any:
     graph = StateGraph(ClaimState)
@@ -123,34 +130,29 @@ def _build_graph() -> Any:
 
     graph.set_entry_point("doc_verification")
 
-    # After verification, check if we should stop (e.g. no docs uploaded)
+    # After verification: failed → skip straight to aggregation (TC001, TC002)
     graph.add_conditional_edges(
         "doc_verification",
-        should_continue,
+        _route,
         {"continue": "doc_extraction", "stop": "decision_aggregation"},
     )
-    graph.add_conditional_edges(
-        "doc_extraction",
-        should_continue,
-        {"continue": "cross_validation", "stop": "decision_aggregation"},
-    )
+    # Extraction failures (TC011) do NOT set pipeline_stop, so always continue
+    graph.add_edge("doc_extraction", "cross_validation")
+
+    # After cross-validation: name mismatch → skip to aggregation (TC003)
     graph.add_conditional_edges(
         "cross_validation",
-        should_continue,
+        _route,
         {"continue": "policy_evaluation", "stop": "decision_aggregation"},
     )
-    graph.add_conditional_edges(
-        "policy_evaluation",
-        should_continue,
-        {"continue": "fraud_detection", "stop": "decision_aggregation"},
-    )
+    graph.add_edge("policy_evaluation", "fraud_detection")
     graph.add_edge("fraud_detection", "decision_aggregation")
     graph.add_edge("decision_aggregation", END)
 
     return graph.compile()
 
 
-_COMPILED_GRAPH = None
+_COMPILED_GRAPH: Optional[Any] = None
 
 
 def get_graph() -> Any:
@@ -160,19 +162,18 @@ def get_graph() -> Any:
     return _COMPILED_GRAPH
 
 
-# ---------------------------------------------------------------------------
-# Public pipeline class
-# ---------------------------------------------------------------------------
+# ── Public pipeline class ─────────────────────────────────────────────────────
 
 class ClaimsPipeline:
     def __init__(self) -> None:
         self._graph = get_graph()
+        self._policy_loader = PolicyLoader(settings.POLICY_FILE_PATH)
+        self._llm_service = LLMService()
 
     async def process(self, submission: ClaimSubmission) -> ClaimResponse:
         claim_id = f"CLM-{uuid.uuid4().hex[:8].upper()}"
         pipeline_start = _now()
 
-        # Flatten submission into initial state dict
         initial_state: ClaimState = {
             "claim_id": claim_id,
             "member_id": submission.member_id,
@@ -181,10 +182,15 @@ class ClaimsPipeline:
             "treatment_date": submission.treatment_date,
             "claimed_amount": submission.claimed_amount,
             "hospital_name": submission.hospital_name,
+            "diagnosis": submission.diagnosis,
             "documents": submission.documents,
             "claims_history": submission.claims_history or [],
             "ytd_claims_amount": submission.ytd_claims_amount or 0.0,
-            "simulate_component_failure": submission.simulate_component_failure,
+            "simulate_component_failure": submission.simulate_component_failure or False,
+            # Services injected into state so agents don't need globals
+            "policy_loader": self._policy_loader,
+            "llm_service": self._llm_service,
+            # Internal pipeline flags
             "pipeline_stop": False,
             "_trace_entries": [],
         }
@@ -197,7 +203,6 @@ class ClaimsPipeline:
 
         pipeline_end = _now()
 
-        # Build trace
         trace_entries: List[TraceEntry] = final_state.get("_trace_entries", [])
         pipeline_stopped = final_state.get("pipeline_stop", False)
         trace = DecisionTrace(
@@ -206,7 +211,6 @@ class ClaimsPipeline:
             pipeline_status="stopped_early" if pipeline_stopped else "completed",
         )
 
-        # Resolve final decision
         final_decision = final_state.get("final_decision")
         decision_value: Optional[str] = None
         approved_amount: Optional[float] = None
@@ -226,10 +230,14 @@ class ClaimsPipeline:
         if final_state.get("_agent_error"):
             errors.append(final_state["_agent_error"])
 
-        doc_error: Optional[str] = None
+        # Surface the most specific error_message for display
+        error_message: Optional[str] = None
         doc_result = final_state.get("doc_verification_result")
+        cross_result = final_state.get("cross_validation_result")
         if doc_result and doc_result.status == "failed":
-            doc_error = doc_result.error_message
+            error_message = doc_result.error_message
+        elif cross_result and cross_result.status == "failed":
+            error_message = cross_result.error_message
 
         status = "stopped_early" if pipeline_stopped else "completed"
 
@@ -243,5 +251,5 @@ class ClaimsPipeline:
             trace=trace,
             errors=errors,
             recommendations=recommendations,
-            error_message=doc_error,
+            error_message=error_message,
         )
