@@ -14,6 +14,8 @@ class TraceEntry(BaseModel):
     duration_ms: Optional[float] = None
     details: Dict[str, Any] = Field(default_factory=dict)
     errors: List[str] = Field(default_factory=list)
+    # Structured per-agent summary for the frontend trace viewer
+    summary: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DecisionTrace(BaseModel):

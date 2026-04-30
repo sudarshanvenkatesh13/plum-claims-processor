@@ -1,0 +1,11 @@
+# Backend secrets — never commit real keys
+backend/.env
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Misc
+.DS_Store

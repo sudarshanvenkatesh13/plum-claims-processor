@@ -27,6 +27,52 @@ logger = logging.getLogger(__name__)
 ClaimState = Dict[str, Any]
 
 
+def _extract_agent_summary(agent_name: str, state: ClaimState) -> Dict[str, Any]:
+    """Build a JSON-serializable summary for the frontend trace viewer."""
+    try:
+        if agent_name == "DocumentVerification":
+            r = state.get("doc_verification_result")
+            return r.model_dump(mode="json") if r else {}
+
+        if agent_name == "DocumentExtraction":
+            results = state.get("extraction_results", [])
+            return {
+                "documents_extracted": len(results),
+                "component_failed": state.get("_component_failed", False),
+                "extractions": [
+                    {
+                        "file_id": er.file_id,
+                        "document_type": er.document_type.value,
+                        "confidence": er.confidence,
+                        "error": er.error,
+                        "extraction": er.extraction.model_dump(mode="json") if er.extraction else None,
+                    }
+                    for er in results
+                ],
+            }
+
+        if agent_name == "CrossValidation":
+            r = state.get("cross_validation_result")
+            return r.model_dump(mode="json") if r else {}
+
+        if agent_name == "PolicyEvaluation":
+            r = state.get("policy_eval_result")
+            return r.model_dump(mode="json") if r else {}
+
+        if agent_name == "FraudDetection":
+            r = state.get("fraud_result")
+            return r.model_dump(mode="json") if r else {}
+
+        if agent_name == "DecisionAggregation":
+            r = state.get("final_decision")
+            return r.model_dump(mode="json") if r else {}
+
+    except Exception as exc:
+        logger.warning("Summary extraction failed for %s: %s", agent_name, exc)
+        return {"error": str(exc)}
+    return {}
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -64,6 +110,7 @@ async def _timed_node(name: str, fn, state: ClaimState) -> ClaimState:
             completed_at=completed,
             duration_ms=_ms(started, completed),
             details=details,
+            summary=_extract_agent_summary(name, new_state),
         )
     except Exception as exc:
         completed = _now()
