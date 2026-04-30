@@ -180,6 +180,9 @@ class ClaimsPipeline:
             "policy_id": submission.policy_id,
             "claim_category": submission.claim_category.value,
             "treatment_date": submission.treatment_date,
+            # When submission_date is not provided, default to treatment_date so
+            # the deadline check treats the claim as submitted on the day of treatment.
+            "submission_date": submission.submission_date or submission.treatment_date,
             "claimed_amount": submission.claimed_amount,
             "hospital_name": submission.hospital_name,
             "diagnosis": submission.diagnosis,

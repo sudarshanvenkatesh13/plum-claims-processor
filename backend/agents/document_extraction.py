@@ -56,6 +56,9 @@ def _map_content_to_extraction(doc_type: DocumentType, content: Dict[str, Any]):
             )
         elif doc_type == DocumentType.LAB_REPORT:
             raw_tests = content.get("tests", [])
+            # Handle single-test shortcut: {"test_name": "MRI Lumbar Spine"}
+            if not raw_tests and content.get("test_name"):
+                raw_tests = [{"name": content["test_name"]}]
             tests = [
                 LabTest(
                     name=t.get("name", ""),

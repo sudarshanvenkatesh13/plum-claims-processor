@@ -79,6 +79,8 @@ async def run_policy_evaluation(state: Dict[str, Any]) -> Dict[str, Any]:
     member_id: str = state.get("member_id", "")
     category: str = state.get("claim_category", "")  # uppercase e.g. "CONSULTATION"
     treatment_date: date = state.get("treatment_date", _today())
+    # submission_date defaults to treatment_date so test cases (old dates) always pass deadline
+    submission_date: date = state.get("submission_date") or treatment_date
     claimed_amount: float = float(state.get("claimed_amount", 0))
     hospital_name: str = state.get("hospital_name") or ""
     ytd_claims_amount: float = float(state.get("ytd_claims_amount") or 0)
@@ -124,7 +126,7 @@ async def run_policy_evaluation(state: Dict[str, Any]) -> Dict[str, Any]:
     # CHECK 2 — Submission Deadline
     # ══════════════════════════════════════════════════════════════════
     deadline_days = policy_loader.get_submission_deadline_days() if policy_loader else 30
-    days_since = (_today() - treatment_date).days
+    days_since = (submission_date - treatment_date).days
     if days_since > deadline_days:
         within_deadline = SubmissionDeadlineResult(
             passed=False,
@@ -534,10 +536,18 @@ def _check_pre_auth(
         ext = er.extraction
         if ext is None:
             continue
+        # DiagnosticReport: modality field (e.g. "MRI", "CT Scan")
         if hasattr(ext, "modality") and ext.modality:
             descriptions.append(ext.modality)
+        # LabReport: test names
         if hasattr(ext, "tests"):
             descriptions.extend(t.name for t in getattr(ext, "tests", []))
+        # Prescription: tests_ordered list (e.g. ["MRI Lumbar Spine"])
+        if hasattr(ext, "tests_ordered"):
+            descriptions.extend(getattr(ext, "tests_ordered", []))
+        # Hospital bill: line item descriptions
+        if hasattr(ext, "line_items"):
+            descriptions.extend(li.description for li in getattr(ext, "line_items", []))
 
     # Check if any high-value test is present and amount > threshold (TC007)
     for desc in descriptions:

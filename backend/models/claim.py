@@ -39,7 +39,8 @@ class ClaimSubmission(BaseModel):
     treatment_date: date
     claimed_amount: float = Field(..., gt=0)
     hospital_name: Optional[str] = None
-    diagnosis: Optional[str] = None     # direct diagnosis shortcut for test cases
+    diagnosis: Optional[str] = None            # direct diagnosis shortcut for test cases
+    submission_date: Optional[date] = None     # when None, treated as same day as treatment
     documents: List[UploadedDocument] = Field(default_factory=list)
     claims_history: Optional[List[PriorClaim]] = None
     ytd_claims_amount: Optional[float] = 0.0

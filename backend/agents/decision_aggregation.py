@@ -157,12 +157,13 @@ async def run_decision_aggregation(state: Dict[str, Any]) -> Dict[str, Any]:
                 + ", ".join(f"{li.description} ₹{li.amount:,.0f} ({li.reason})" for li in rejected_items)
             )
 
-    # Component failure advisory (TC011)
-    if component_failed and policy_decision == Decision.APPROVED:
-        policy_decision = Decision.MANUAL_REVIEW
-        reasons.append("Approved by policy logic but routed to manual review due to extraction failure.")
+    # Component failure advisory (TC011): keep the policy decision but degrade confidence
+    if component_failed:
+        reasons.append(
+            "Note: one or more documents could not be extracted. Decision is based on partial data."
+        )
         recommendations.append(
-            "Manual review recommended: one or more documents could not be fully extracted."
+            "Manual review recommended: incomplete document extraction due to component failure."
         )
 
     # Low confidence catch-all
