@@ -642,10 +642,19 @@ export default function SubmitClaimPage() {
               ) : docSlots.length === 0 ? (
                 <p className="text-sm text-gray-500">No document requirements configured for this category.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  {docSlots.map((slot) => (
-                    <DocUploadSlot key={slot.id} slot={slot} onChange={updateSlot} />
-                  ))}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {docSlots.map((slot) => (
+                      <DocUploadSlot key={slot.id} slot={slot} onChange={updateSlot} />
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 pt-1">
+                    Need test documents?{" "}
+                    <a href="/documents" className="text-teal-600 hover:underline font-medium">
+                      Visit the Sample Documents page
+                    </a>{" "}
+                    to download realistic Indian medical documents for real GPT-4o Vision testing.
+                  </p>
                 </div>
               )}
             </Section>
