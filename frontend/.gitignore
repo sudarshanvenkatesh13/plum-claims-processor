@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — local overrides are never committed; .env.production is safe (placeholder only)
+.env.local
+.env.*.local
 
 # vercel
 .vercel

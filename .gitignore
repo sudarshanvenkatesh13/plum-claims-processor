@@ -7,5 +7,17 @@ __pycache__/
 *.pyo
 .pytest_cache/
 
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# Local env overrides
+.env.local
+.env.*.local
+
 # Misc
 .DS_Store
+*.log
+venv/
+.venv/

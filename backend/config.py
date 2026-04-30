@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,9 +13,17 @@ class Settings(BaseSettings):
 
     POLICY_FILE_PATH: str = "data/policy_terms.json"
 
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    # Explicit extra origin (e.g. your Vercel deployment URL)
+    FRONTEND_URL: Optional[str] = None
 
     LOG_LEVEL: str = "INFO"
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        origins = ["http://localhost:3000"]
+        if self.FRONTEND_URL:
+            origins.append(self.FRONTEND_URL)
+        return origins
 
 
 settings = Settings()
