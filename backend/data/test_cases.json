@@ -1,0 +1,70 @@
+{
+  "_comment": "Replace or extend with your actual test_cases.json",
+  "test_cases": [
+    {
+      "id": "TC-001",
+      "description": "Valid consultation claim within limits",
+      "input": {
+        "member_id": "MEM-001",
+        "policy_id": "POL-PLUM-001",
+        "claim_category": "CONSULTATION",
+        "treatment_date": "2026-04-01",
+        "claimed_amount": 1500,
+        "hospital_name": "Apollo Hospital"
+      },
+      "expected": {
+        "decision": "APPROVED",
+        "status": "completed"
+      }
+    },
+    {
+      "id": "TC-002",
+      "description": "Claim exceeding sub-limit should be partially approved",
+      "input": {
+        "member_id": "MEM-001",
+        "policy_id": "POL-PLUM-001",
+        "claim_category": "CONSULTATION",
+        "treatment_date": "2026-04-01",
+        "claimed_amount": 8000,
+        "hospital_name": "Apollo Hospital"
+      },
+      "expected": {
+        "decision": "PARTIAL",
+        "approved_amount": 5000,
+        "status": "completed"
+      }
+    },
+    {
+      "id": "TC-003",
+      "description": "Claim for excluded condition should be rejected",
+      "input": {
+        "member_id": "MEM-001",
+        "policy_id": "POL-PLUM-001",
+        "claim_category": "CONSULTATION",
+        "treatment_date": "2026-04-01",
+        "claimed_amount": 3000,
+        "hospital_name": "Apollo Hospital",
+        "diagnosis": "cosmetic surgery"
+      },
+      "expected": {
+        "decision": "REJECTED",
+        "status": "completed"
+      }
+    },
+    {
+      "id": "TC-004",
+      "description": "No documents uploaded should stop pipeline early",
+      "input": {
+        "member_id": "MEM-001",
+        "policy_id": "POL-PLUM-001",
+        "claim_category": "CONSULTATION",
+        "treatment_date": "2026-04-01",
+        "claimed_amount": 1000,
+        "documents": []
+      },
+      "expected": {
+        "status": "stopped_early"
+      }
+    }
+  ]
+}

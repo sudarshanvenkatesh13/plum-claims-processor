@@ -1,0 +1,140 @@
+{
+  "_comment": "Replace this file with your actual policy_terms.json",
+  "policy_id": "POL-PLUM-001",
+  "policy_name": "Plum OPD Health Plan",
+  "insurer": "Plum Insurance",
+  "members": [
+    {
+      "member_id": "MEM-001",
+      "name": "Rahul Sharma",
+      "age": 35,
+      "gender": "M",
+      "relationship": "self",
+      "policy_id": "POL-PLUM-001",
+      "pre_existing_conditions": []
+    },
+    {
+      "member_id": "MEM-002",
+      "name": "Priya Sharma",
+      "age": 32,
+      "gender": "F",
+      "relationship": "spouse",
+      "policy_id": "POL-PLUM-001",
+      "pre_existing_conditions": ["diabetes"]
+    }
+  ],
+  "coverage": {
+    "annual_limit": 300000,
+    "per_claim_limit": 50000
+  },
+  "opd_categories": {
+    "CONSULTATION": {
+      "sub_limit": 5000,
+      "copay": 0.1,
+      "network_discount": 0.15
+    },
+    "DIAGNOSTIC": {
+      "sub_limit": 10000,
+      "copay": 0.0,
+      "network_discount": 0.10
+    },
+    "PHARMACY": {
+      "sub_limit": 8000,
+      "copay": 0.2,
+      "network_discount": 0.0
+    },
+    "DENTAL": {
+      "sub_limit": 3000,
+      "copay": 0.2,
+      "network_discount": 0.0
+    },
+    "VISION": {
+      "sub_limit": 2000,
+      "copay": 0.1,
+      "network_discount": 0.0
+    },
+    "ALTERNATIVE_MEDICINE": {
+      "sub_limit": 2000,
+      "copay": 0.3,
+      "network_discount": 0.0
+    }
+  },
+  "document_requirements": {
+    "CONSULTATION": {
+      "required": ["PRESCRIPTION"],
+      "optional": ["HOSPITAL_BILL"]
+    },
+    "DIAGNOSTIC": {
+      "required": ["LAB_REPORT", "PRESCRIPTION"],
+      "optional": ["DIAGNOSTIC_REPORT"]
+    },
+    "PHARMACY": {
+      "required": ["PHARMACY_BILL", "PRESCRIPTION"],
+      "optional": []
+    },
+    "DENTAL": {
+      "required": ["DENTAL_REPORT"],
+      "optional": ["HOSPITAL_BILL"]
+    },
+    "VISION": {
+      "required": ["PRESCRIPTION"],
+      "optional": ["HOSPITAL_BILL"]
+    },
+    "ALTERNATIVE_MEDICINE": {
+      "required": ["PRESCRIPTION"],
+      "optional": ["HOSPITAL_BILL"]
+    }
+  },
+  "waiting_periods": {
+    "initial_waiting_period_days": 30,
+    "condition_specific": {
+      "diabetes": 365,
+      "hypertension": 365,
+      "thyroid": 180,
+      "knee replacement": 730,
+      "cataract": 365,
+      "hernia": 365,
+      "piles": 365,
+      "sinusitis": 180
+    }
+  },
+  "exclusions": {
+    "general": [
+      "cosmetic",
+      "hair transplant",
+      "weight loss",
+      "fertility treatment",
+      "experimental treatment",
+      "self-inflicted injury",
+      "substance abuse"
+    ],
+    "category_specific": {
+      "DENTAL": ["teeth whitening", "cosmetic fillings", "dental implants"],
+      "VISION": ["laser eye surgery", "cosmetic lenses"]
+    }
+  },
+  "pre_authorization": {
+    "required_for": ["hospitalization", "surgery", "chemotherapy"],
+    "threshold_amount": 25000
+  },
+  "network_hospitals": [
+    "Apollo Hospital",
+    "Fortis Healthcare",
+    "Max Hospital",
+    "Manipal Hospital",
+    "Columbia Asia",
+    "Narayana Health",
+    "Aster Hospital",
+    "Medanta Hospital"
+  ],
+  "fraud_thresholds": {
+    "high_value_threshold": 20000,
+    "same_day_limit": 2,
+    "monthly_frequency_limit": 5,
+    "round_amount_threshold": 1000
+  },
+  "submission_rules": {
+    "submission_deadline_days": 90,
+    "minimum_claim_amount": 200
+  }
+}

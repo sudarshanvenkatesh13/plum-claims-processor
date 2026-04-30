@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+openai
+langgraph
+langchain-core
+python-multipart
+python-dotenv
+Pillow
+fpdf2
+pytest
+pytest-asyncio
+httpx
+aiofiles
