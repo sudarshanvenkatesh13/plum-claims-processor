@@ -9,10 +9,9 @@ import type {
 } from "./types";
 
 const _raw = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-// Guard: if the env var was set without a protocol (e.g. "foo.railway.app" instead of
-// "https://foo.railway.app"), the browser would treat it as a relative path and prepend
-// the frontend domain, resulting in 404s for every API call.
-const BASE = _raw.startsWith("http") ? _raw : `https://${_raw}`;
+// Normalise: add https:// if protocol is missing, strip trailing slash so paths
+// like "/api/..." don't produce double-slash URLs (e.g. "host//api/...").
+const BASE = (_raw.startsWith("http") ? _raw : `https://${_raw}`).replace(/\/$/, "");
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
