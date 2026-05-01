@@ -6,9 +6,10 @@
 
 | Service | URL |
 |---------|-----|
-| Frontend | *(Vercel URL — to be added after deployment)* |
-| Backend API | *(Railway URL — to be added after deployment)* |
-| API Docs | `{Railway URL}/docs` |
+| Frontend | [plum-claims-processor.vercel.app](https://plum-claims-processor.vercel.app) |
+| Backend API | [plum-claims-processor-production.up.railway.app](https://plum-claims-processor-production.up.railway.app) |
+| API Docs | [plum-claims-processor-production.up.railway.app/docs](https://plum-claims-processor-production.up.railway.app/docs) |
+| Demo Video | [Watch on Loom](https://www.loom.com/share/cf1bb23b9e2347b09f405cd44cc425e2) |
 
 ---
 
@@ -129,6 +130,10 @@ After submission, the decision page shows:
 - Confidence score
 - Full per-agent trace with expandable panels showing each agent's internal reasoning
 
+### Sample Documents
+
+Navigate to `/documents` to download realistic Indian medical documents (prescriptions, hospital bills, lab reports). Upload these on the submission page to test real GPT-4o Vision document processing.
+
 ### Eval Suite
 
 Navigate to `/eval`. Click **Run All 12 Test Cases** to execute the full evaluation suite — cases run one at a time with a live progress indicator. Click any completed row to expand the full trace. Individual cases can also be re-run via the **Run** button on each row.
@@ -175,7 +180,8 @@ plum-claims-processor/
 │   │   └── test_cases.json            # 12 evaluation test cases
 │   ├── tests/                         # Unit and integration tests
 │   ├── scripts/
-│   │   └── run_eval.py               # CLI eval runner
+│   │   ├── run_eval.py                # CLI eval runner
+│   │   └── generate_mock_docs.py      # Medical document image generator
 │   ├── Dockerfile
 │   ├── railway.toml
 │   └── requirements.txt
@@ -185,6 +191,7 @@ plum-claims-processor/
 │   │   │   ├── page.tsx               # Claim submission form
 │   │   │   ├── claims/[id]/page.tsx   # Decision trace viewer
 │   │   │   ├── claims/page.tsx        # All claims list
+│   │   │   ├── documents/page.tsx     # Sample documents download page
 │   │   │   └── eval/page.tsx          # Eval suite runner
 │   │   ├── components/
 │   │   │   ├── TraceViewer.tsx        # Shared agent trace accordion
@@ -192,7 +199,12 @@ plum-claims-processor/
 │   │   └── lib/
 │   │       ├── api.ts                 # API client
 │   │       └── types.ts               # TypeScript types
+│   ├── public/
+│   │   └── sample-documents/          # Generated medical docs for testing
 │   └── next.config.ts
+├── ARCHITECTURE.md                    # System design document
+├── COMPONENT_CONTRACTS.md             # Interface specifications
+├── EVAL_REPORT.md                     # Test case results with traces
 └── README.md
 ```
 
@@ -228,11 +240,11 @@ plum-claims-processor/
 
 | # | Deliverable | Location |
 |---|-------------|----------|
-| 1 | Working system | This repo + deployed URLs above |
-| 2 | Architecture document | `ARCHITECTURE.md` |
-| 3 | Component contracts | `COMPONENT_CONTRACTS.md` |
-| 4 | Eval report | `EVAL_REPORT.md` |
-| 5 | Demo video | *(link to be added)* |
+| 1 | Working system | This repo + [live demo](https://plum-claims-processor.vercel.app) |
+| 2 | Architecture document | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| 3 | Component contracts | [COMPONENT_CONTRACTS.md](./COMPONENT_CONTRACTS.md) |
+| 4 | Eval report | [EVAL_REPORT.md](./EVAL_REPORT.md) |
+| 5 | Demo video | [Watch on Loom](https://www.loom.com/share/cf1bb23b9e2347b09f405cd44cc425e2) |
 
 ---
 
@@ -241,4 +253,9 @@ plum-claims-processor/
 **Sudarshan Venkatesh**
 
 - GitHub: [sudarshanvenkatesh13](https://github.com/sudarshanvenkatesh13)
+- Twitter: [@SudarshanVenk](https://x.com/SudarshanVenk)
 - Email: sudarshan.venkateshv@gmail.com
+
+---
+
+Built with Python, FastAPI, LangGraph, GPT-4o, Next.js, and TypeScript.
